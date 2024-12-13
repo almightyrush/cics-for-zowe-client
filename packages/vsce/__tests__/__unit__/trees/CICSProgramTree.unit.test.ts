@@ -1,38 +1,79 @@
-import { CICSProgramTreeItem } from "../../../src/trees/treeItems/CICSProgramTreeItem";
 import { CICSProgramTree } from "../../../src/trees/CICSProgramTree";
 import { CICSRegionTree } from "../../../src/trees/CICSRegionTree";
-import { ProfileManagement } from "../../../src/utils/profileManagement";
-// import { CICSSessionTree } from "../../../src/trees/CICSSessionTree";
-// import { CICSPlexTree } from "../../../src/trees/CICSPlexTree";
-// import { IProfileLoaded } from "@zowe/imperative";
-// import { TreeItem } from "vscode";
+import { CICSProgramTreeItem } from "../../../src/trees/treeItems/CICSProgramTreeItem";
+import * as filterUtils from "../../../src/utils/filterUtils";
+// const cicsRegionTree = require("../../../src/trees/CICSRegionTree");
 
-jest.mock("../../../src/trees/CICSRegionTree");
-jest.mock("../../../src/trees/treeItems/CICSProgramTreeItem");
-jest.mock("../../../src/utils/profileManagement");
+const sessionMock = jest.fn();
+const getIconPathInResourcesMock = jest.fn();
 
-// jest.mock("@zowe/imperative");
+jest.mock("../../../src/trees/CICSRegionTree", () => {
+    return {
+        CICSRegionTree: jest.fn().mockImplementation(() => {
+            return {
+                parentSession: sessionMock,
+            };
+        }),
+    };
+});
 
-// let iprofileLoadedMock: IProfileLoaded;
-// let cicsSessionTreeMock: CICSSessionTree;
-// let cicsPlexTree: CICSPlexTree;
-let cicsRegionTreeMock: CICSRegionTree;
-let cicsProgramTreeItem: CICSProgramTreeItem;
-let profileManagement: ProfileManagement;
-describe("CICSProgramTree testing", () => {
-    // const cicsSessionTreeMock = new CICSSessionTree("profile");
-    // const iprofileLoadedMock = new IProfileLoaded();
-    // const cicsPlexTree = new CICSPlexTree("plex", iprofileLoadedMock, cicsSessionTreeMock);
-    // const cicsRegionTreeMock = new CICSRegionTree("", "", cicsSessionTreeMock, cicsPlexTree, "");
-    console.log(profileManagement);
-    describe("addProgram", () => {
-        it.only("Should check that the constructor is called", () => {
-            console.log("Start testing ============");
-            const cicsProgramTree = new CICSProgramTree(cicsRegionTreeMock);
-            // cicsProgramTree.addProgram(cicsProgramTreeItem);
-            // console.log("Items in program tree: " + cicsProgramTreeItem);
-            // expect(cicsProgramTreeItem).toBeGreaterThan(1)
-            expect(true).toBe(true);
+jest.mock("../../../src/utils/profileUtils", () => {
+    return {
+        profileUtils: jest.fn().mockImplementation(() => {
+            return { getIconPathInResources: getIconPathInResourcesMock };
+        }),
+    };
+});
+jest.mock("../../../src/trees/treeItems/CICSProgramTreeItem", () => {
+    return { CICSProgramTreeItem: jest.fn() };
+});
+// jest.mock("../../../src/utils/filterUtils");
+
+const cicsRegionTreeMock = {
+    parentSession: sessionMock,
+};
+
+const CICSProgramTreeItemMock = {};
+
+describe("CICSProgramTree", () => {
+    let sut: CICSProgramTree;
+
+    beforeEach(() => {
+        getIconPathInResourcesMock.mockReturnValue("/icon/path");
+        sut = new CICSProgramTree(cicsRegionTreeMock as any as CICSRegionTree, getIconPathInResourcesMock());
+        jest.spyOn(filterUtils, "getDefaultProgramFilter").mockResolvedValueOnce(
+            "NOT (PROGRAM=CEE* OR PROGRAM=DFH* OR PROGRAM=CJ* OR PROGRAM=EYU* OR PROGRAM=CSQ* OR PROGRAM=CEL* OR PROGRAM=IGZ*)",
+        );
+    });
+
+    afterEach(() => {
+        jest.resetAllMocks();
+    });
+
+    describe("Test suite for addProgram()", () => {
+        it("Should add CICSProgramTreeItem into program", () => {
+            sut.addProgram(CICSProgramTreeItemMock as any as CICSProgramTreeItem);
+            expect(sut.children.length).toBeGreaterThanOrEqual(1);
+        });
+    });
+
+    describe("Test suite for loadContents()", () => {
+        it("Should return default value", async () => {
+            // sessionMock.mockReturnValue(true);
+
+            await sut.loadContents();
+            expect(filterUtils.getDefaultProgramFilter()).toHaveBeenCalled();
         });
     });
 });
+
+// describe("CICSProgramTree Test", () => {
+//     let sut: CICSProgramTree;
+//     beforeEach(() => {
+//         sut = new CICSProgramTree(cicsRegionTreeMock as any as CICSRegionTree, iconPath);
+//     });
+//     it("Calling sut for test", () => {
+//         sut.addProgram(CICSProgramTreeItemMock as CICSProgramTreeItem);
+//         expect(sut.children.length).toBeGreaterThanOrEqual(1);
+//     });
+// });
