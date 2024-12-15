@@ -1,49 +1,70 @@
-import { CICSProgramTree } from "../../../src/trees/CICSProgramTree";
-import { CICSRegionTree } from "../../../src/trees/CICSRegionTree";
-import { CICSProgramTreeItem } from "../../../src/trees/treeItems/CICSProgramTreeItem";
-import * as filterUtils from "../../../src/utils/filterUtils";
-// const cicsRegionTree = require("../../../src/trees/CICSRegionTree");
-
-const sessionMock = jest.fn();
 const getIconPathInResourcesMock = jest.fn();
 
-jest.mock("../../../src/trees/CICSRegionTree", () => {
-    return {
-        CICSRegionTree: jest.fn().mockImplementation(() => {
-            return {
-                parentSession: sessionMock,
-            };
-        }),
-    };
-});
+import { imperative } from "@zowe/zowe-explorer-api";
+import { CICSRegionTree } from "../../../src/trees/CICSRegionTree";
+import { ICMCIApiResponse } from "@zowe/cics-for-zowe-sdk";
+import { CICSProgramTreeItem } from "../../../src/trees/treeItems/CICSProgramTreeItem";
+import * as filterUtils from "../../../src/utils/filterUtils";
+import { CICSPlexTree } from "../../../src/trees/CICSPlexTree";
+import { CICSProgramTree } from "../../../src/trees/CICSProgramTree";
+
+jest.mock("@zowe/cics-for-zowe-sdk");
+const zoweSdk = require("@zowe/cics-for-zowe-sdk");
+const sessionMock = jest.fn();
 
 jest.mock("../../../src/utils/profileUtils", () => {
-    return {
-        profileUtils: jest.fn().mockImplementation(() => {
-            return { getIconPathInResources: getIconPathInResourcesMock };
-        }),
-    };
+    return { getIconPathInResources: getIconPathInResourcesMock };
 });
+// jest.mock("../../../src/utils/profileUtils", () => {
+//     return jest.fn().mockImplementation(() => {
+//         return { getIconPathInResources: getIconPathInResourcesMock };
+//     });
+//     // getIconPathInResources: jest.fn(),
+// });
 jest.mock("../../../src/trees/treeItems/CICSProgramTreeItem", () => {
     return { CICSProgramTreeItem: jest.fn() };
 });
-// jest.mock("../../../src/utils/filterUtils");
-
-const cicsRegionTreeMock = {
-    parentSession: sessionMock,
+const imperativeSession = new imperative.Session({
+    user: "fake",
+    password: "fake",
+    hostname: "fake",
+    protocol: "https",
+    type: "basic",
+    rejectUnauthorized: false,
+});
+const CICSSessionTreeMock = {
+    session: imperativeSession,
 };
 
+const CICSPlexTreeMock = {
+    getPlexName: jest.fn(),
+};
+const cicsRegionTreeMock = {
+    parentSession: CICSSessionTreeMock,
+    getRegionName: jest.fn().mockReturnValue("IYK2ZXXXX"),
+    // getPlexName: jest.fn().mockImplementation(() => getPlexName),
+};
 const CICSProgramTreeItemMock = {};
-
+const getResourceMock = jest.spyOn(zoweSdk, "getResource");
+const iconPath = "/icon/path";
+const resourceName = "testResource";
+const cicsprogram = "cicsprogram";
+const value = "NOT (PROGRAM=CEE* OR PROGRAM=DFH* OR PROGRAM=CJ* OR PROGRAM=EYU* OR PROGRAM=CSQ* OR PROGRAM=CEL* OR PROGRAM=IGZ*)";
+const defaultReturn: ICMCIApiResponse = {
+    response: {
+        resultsummary: { api_response1: "1024", api_response2: "0", recordcount: "0", displayed_recordcount: "0" },
+        records: {},
+    },
+};
 describe("CICSProgramTree", () => {
     let sut: CICSProgramTree;
 
     beforeEach(() => {
-        getIconPathInResourcesMock.mockReturnValue("/icon/path");
-        sut = new CICSProgramTree(cicsRegionTreeMock as any as CICSRegionTree, getIconPathInResourcesMock());
-        jest.spyOn(filterUtils, "getDefaultProgramFilter").mockResolvedValueOnce(
-            "NOT (PROGRAM=CEE* OR PROGRAM=DFH* OR PROGRAM=CJ* OR PROGRAM=EYU* OR PROGRAM=CSQ* OR PROGRAM=CEL* OR PROGRAM=IGZ*)",
-        );
+        getResourceMock.mockClear();
+        getIconPathInResourcesMock.mockReturnValue(iconPath);
+        sessionMock.mockReturnValue(imperativeSession);
+        sut = new CICSProgramTree(cicsRegionTreeMock as any as CICSRegionTree);
+        getResourceMock.mockImplementation(async () => defaultReturn);
     });
 
     afterEach(() => {
@@ -58,22 +79,23 @@ describe("CICSProgramTree", () => {
     });
 
     describe("Test suite for loadContents()", () => {
-        it("Should return default value", async () => {
-            // sessionMock.mockReturnValue(true);
+        it("Should invoke getDefaultProgramFilter when activeFilter is undefined", async () => {
+            const getDefaultProgramFilter = jest.spyOn(filterUtils, "getDefaultProgramFilter").mockResolvedValueOnce(value);
+            defaultReturn.response.records[resourceName.toLowerCase()] = [{ prop: "test1" }, { prop: "test2" }];
 
             await sut.loadContents();
-            expect(filterUtils.getDefaultProgramFilter()).toHaveBeenCalled();
+            expect(getDefaultProgramFilter).toHaveBeenCalled();
+            expect(sut.activeFilter).toBeUndefined();
+        });
+
+        it("Should invoke toEscapedCriteriaString when activeFilter is defined", async () => {
+            sut.activeFilter = "Active";
+            defaultReturn.response.records[cicsprogram.toLowerCase()] = [{ prop: "test1" }, { prop: "test2" }];
+            const toEscapedCriteriaString = jest.spyOn(filterUtils, "toEscapedCriteriaString").mockReturnValueOnce("PROGRAM");
+
+            await sut.loadContents();
+            expect(toEscapedCriteriaString).toHaveBeenCalled();
+            expect(sut.activeFilter).toBeDefined();
         });
     });
 });
-
-// describe("CICSProgramTree Test", () => {
-//     let sut: CICSProgramTree;
-//     beforeEach(() => {
-//         sut = new CICSProgramTree(cicsRegionTreeMock as any as CICSRegionTree, iconPath);
-//     });
-//     it("Calling sut for test", () => {
-//         sut.addProgram(CICSProgramTreeItemMock as CICSProgramTreeItem);
-//         expect(sut.children.length).toBeGreaterThanOrEqual(1);
-//     });
-// });
