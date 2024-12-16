@@ -5,7 +5,6 @@ import { CICSRegionTree } from "../../../src/trees/CICSRegionTree";
 import { ICMCIApiResponse } from "@zowe/cics-for-zowe-sdk";
 import { CICSProgramTreeItem } from "../../../src/trees/treeItems/CICSProgramTreeItem";
 import * as filterUtils from "../../../src/utils/filterUtils";
-import { CICSPlexTree } from "../../../src/trees/CICSPlexTree";
 import { CICSProgramTree } from "../../../src/trees/CICSProgramTree";
 
 jest.mock("@zowe/cics-for-zowe-sdk");
@@ -15,12 +14,7 @@ const sessionMock = jest.fn();
 jest.mock("../../../src/utils/profileUtils", () => {
     return { getIconPathInResources: getIconPathInResourcesMock };
 });
-// jest.mock("../../../src/utils/profileUtils", () => {
-//     return jest.fn().mockImplementation(() => {
-//         return { getIconPathInResources: getIconPathInResourcesMock };
-//     });
-//     // getIconPathInResources: jest.fn(),
-// });
+
 jest.mock("../../../src/trees/treeItems/CICSProgramTreeItem", () => {
     return { CICSProgramTreeItem: jest.fn() };
 });
@@ -36,13 +30,9 @@ const CICSSessionTreeMock = {
     session: imperativeSession,
 };
 
-const CICSPlexTreeMock = {
-    getPlexName: jest.fn(),
-};
 const cicsRegionTreeMock = {
     parentSession: CICSSessionTreeMock,
-    getRegionName: jest.fn().mockReturnValue("IYK2ZXXXX"),
-    // getPlexName: jest.fn().mockImplementation(() => getPlexName),
+    getRegionName: jest.fn().mockImplementation(() => "IYK2ZXXXX"),
 };
 const CICSProgramTreeItemMock = {};
 const getResourceMock = jest.spyOn(zoweSdk, "getResource");
@@ -56,15 +46,14 @@ const defaultReturn: ICMCIApiResponse = {
         records: {},
     },
 };
-describe("CICSProgramTree", () => {
+
+describe("Test suite for CICSProgramTree", () => {
     let sut: CICSProgramTree;
 
     beforeEach(() => {
-        getResourceMock.mockClear();
         getIconPathInResourcesMock.mockReturnValue(iconPath);
-        sessionMock.mockReturnValue(imperativeSession);
+
         sut = new CICSProgramTree(cicsRegionTreeMock as any as CICSRegionTree);
-        getResourceMock.mockImplementation(async () => defaultReturn);
     });
 
     afterEach(() => {
@@ -79,8 +68,19 @@ describe("CICSProgramTree", () => {
     });
 
     describe("Test suite for loadContents()", () => {
+        let getDefaultProgramFilter: jest.SpyInstance;
+        
+        beforeEach(() => {
+            sessionMock.mockReturnValue(imperativeSession);
+            getDefaultProgramFilter = jest.spyOn(filterUtils, "getDefaultProgramFilter").mockResolvedValueOnce(value);
+            getResourceMock.mockImplementation(async () => defaultReturn);
+        });
+        afterEach(() => {
+            getResourceMock.mockClear();
+            jest.resetAllMocks();
+        });
+
         it("Should invoke getDefaultProgramFilter when activeFilter is undefined", async () => {
-            const getDefaultProgramFilter = jest.spyOn(filterUtils, "getDefaultProgramFilter").mockResolvedValueOnce(value);
             defaultReturn.response.records[resourceName.toLowerCase()] = [{ prop: "test1" }, { prop: "test2" }];
 
             await sut.loadContents();
@@ -96,6 +96,39 @@ describe("CICSProgramTree", () => {
             await sut.loadContents();
             expect(toEscapedCriteriaString).toHaveBeenCalled();
             expect(sut.activeFilter).toBeDefined();
+        });
+
+        // it("Should throw exception", async () => {
+        //     await sut.loadContents();
+        //     // expect(sut.activeFilter).toBeDefined();
+        // });
+    });
+
+    describe("Test suite for clearFilter", () => {
+        it("Should clear active filter", () => {
+            sut.activeFilter = "Active";
+            sut.clearFilter();
+            expect(sut.activeFilter).toBeUndefined();
+        });
+    });
+
+    describe("Test suite for setFilter", () => {
+        it("Should clear active filter", () => {
+            sut.activeFilter = "Active";
+            sut.setFilter("Active");
+            expect(sut.activeFilter).toEqual("Active");
+        });
+    });
+
+    describe("Test suite for getFilter", () => {
+        it("Should return activeFilter object", () => {
+            expect(sut.getFilter()).toBe(sut.activeFilter);
+        });
+    });
+
+    describe("Test suite for getParent", () => {
+        it("Should return parentRegion object", () => {
+            expect(sut.getParent()).toBe(sut.parentRegion);
         });
     });
 });
