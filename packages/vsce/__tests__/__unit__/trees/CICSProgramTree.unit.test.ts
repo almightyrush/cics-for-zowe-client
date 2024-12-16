@@ -32,7 +32,7 @@ const CICSSessionTreeMock = {
 
 const cicsRegionTreeMock = {
     parentSession: CICSSessionTreeMock,
-    getRegionName: jest.fn().mockImplementation(() => "IYK2ZXXXX"),
+    getRegionName: jest.fn(() => "IYK2ZXXXX"),
 };
 const CICSProgramTreeItemMock = {};
 const getResourceMock = jest.spyOn(zoweSdk, "getResource");
@@ -47,12 +47,19 @@ const defaultReturn: ICMCIApiResponse = {
     },
 };
 
+class CustomError extends Error {
+    mMessage: String | undefined;
+    constructor(mMessage: String) {
+        super();
+        this.mMessage = mMessage;
+    }
+}
+
 describe("Test suite for CICSProgramTree", () => {
     let sut: CICSProgramTree;
 
     beforeEach(() => {
         getIconPathInResourcesMock.mockReturnValue(iconPath);
-
         sut = new CICSProgramTree(cicsRegionTreeMock as any as CICSRegionTree);
     });
 
@@ -69,7 +76,7 @@ describe("Test suite for CICSProgramTree", () => {
 
     describe("Test suite for loadContents()", () => {
         let getDefaultProgramFilter: jest.SpyInstance;
-        
+
         beforeEach(() => {
             sessionMock.mockReturnValue(imperativeSession);
             getDefaultProgramFilter = jest.spyOn(filterUtils, "getDefaultProgramFilter").mockResolvedValueOnce(value);
@@ -98,10 +105,18 @@ describe("Test suite for CICSProgramTree", () => {
             expect(sut.activeFilter).toBeDefined();
         });
 
-        // it("Should throw exception", async () => {
-        //     await sut.loadContents();
-        //     // expect(sut.activeFilter).toBeDefined();
-        // });
+        it("Should throw exception when error.mMessage include {exceeded a resource limit}", async () => {
+            getResourceMock.mockRejectedValue(new CustomError("Error in the method exceeded a resource limit"));
+            await sut.loadContents();
+            expect(getResourceMock).toHaveBeenCalled();
+        });
+
+        it("Should throw exception when error.mMessage include {exceeded a resource limit}", async () => {
+            getResourceMock.mockRejectedValue(new CustomError("Error in the method"));
+            await sut.loadContents();
+            expect(getResourceMock).toHaveBeenCalled();
+            expect(sut.label).toEqual("Programs [0]");
+        });
     });
 
     describe("Test suite for clearFilter", () => {
