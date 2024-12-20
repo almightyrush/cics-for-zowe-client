@@ -23,7 +23,7 @@ import {
 } from "vscode";
 import { PersistentStorage } from "../utils/PersistentStorage";
 import { InfoLoaded, ProfileManagement } from "../utils/profileManagement";
-import { isTheia, openConfigFile } from "../utils/workspaceUtils";
+import { openConfigFile } from "../utils/workspaceUtils";
 import { CICSPlexTree } from "./CICSPlexTree";
 import { CICSRegionTree } from "./CICSRegionTree";
 import { CICSSessionTree } from "./CICSSessionTree";
@@ -311,15 +311,6 @@ export class CICSTree implements TreeDataProvider<CICSSessionTree> {
                           await configInstance.updateProperty({ ...upd, property: "rejectUnauthorized", value: false });
                           updatedProfile = await ProfileManagement.getProfilesCache().getLoadedProfConfig(profile.name);
                         } else {
-                          // flip rejectUnauthorized to false
-                          // const message = {
-                          //   name: profile.name,
-                          //   profile: {
-                          //     ...profile.profile,
-                          //     rejectUnauthorized: false,
-                          //   },
-                          // };
-                          // const newProfile = await ProfileManagement.updateProfile(message);
                           await ProfileManagement.profilesCacheRefresh();
                           updatedProfile = await ProfileManagement.getProfilesCache().loadNamedProfile(profile.name, "cics");
                         }
