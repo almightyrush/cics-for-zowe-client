@@ -1,3 +1,3 @@
 # IBM CICS for Zowe Clients
 
-This repository contains all zowe apps for the IBM CICS product, signing
+This repository contains all zowe apps for the IBM CICS product, signing with verified
